@@ -36,57 +36,73 @@ const setVoice = event => {
   utterance.voice =  selectedVoice
 }
 
-const createExpressionBox = ({ img, text }) => {
-  const div = document.createElement('div')
+const addExpressionBoxesIntoDOM = () => {
+  const divs = humanExpressions.map(({img, text}) => `
+    <div class="expression-box" data-js="${text}">
+      <img src="${img}" alt="${text}" data-js="${text}">
+      <p class="info" data-js="${text}">${text}</p>
+    </div>
+  `).join('')
 
-  div.classList.add('expression-box')
-  div.innerHTML = `
-    <img src="${img}" alt="${text}">
-    <p class="info">${text}</p>
-  `
-  
-  div.addEventListener('click', () => {
-    setTextMessage(text)
-    speakText()
+  main.innerHTML = divs
+}
 
+addExpressionBoxesIntoDOM()
+
+const setStyleOfClickedDiv = datValue => {
+  const div = document.querySelector(`[data-js="${datValue}"]`)
     div.classList.add('active')
     setTimeout(() => {
       div.classList.remove('active')
     }, 1000)
-  })
-
-  main.appendChild(div)
 }
 
-humanExpressions.forEach(createExpressionBox)
+main.addEventListener('click', event => {
+  const clickedElement = event.target
+  const clickedElementText = clickedElement.dataset.js
+  const clickedElementTextMustBeSpoken = ['IMG','P'].some(elementName =>
+    clickedElement.tagName.toLowerCase() === elementName.toLowerCase())
+  if (clickedElementTextMustBeSpoken) {
+    setTextMessage(clickedElementText)
+    speakText()
+    setStyleOfClickedDiv(clickedElementText)
+  }
+})
 
-let voices = []
+const insertOptionElementIntoDOM = voices => {
+  selectElement.innerHTML = voices.reduce((accumulator, { lang, name }) => {
+    accumulator += `<option value="${name}"}>${lang} | ${name}</option>`
+    return accumulator
+  }, '')
+}
 
-speechSynthesis.addEventListener('voiceschanged', () => {
-  voices = speechSynthesis.getVoices()
+const setUtteranceVoice = voice => {
+  utterance.voice = voice
+  const voiceOptionElement = selectElement
+    .querySelector(`[value="${voice.name}"]`)
+  voiceOptionElement.selected = true
+}
+
+const setPTBRVoices = voices => {
   const googleVoice = voices.find(({ name }) =>
     name === 'Google português do Brasil')
   const microsoftVoice = voices.find(({ name }) =>
     name === 'Microsoft Maria Desktop - Portuguese(Brazil)')
 
-  voices.forEach(({ name, lang }) => {
-    const option = document.createElement('option')
+  if (googleVoice) {
+    setUtteranceVoice(googleVoice)
+  } else if (microsoftVoice) {
+    setUtteranceVoice(microsoftVoice)
+  }
+}
 
-    option.value = name
+let voices = []
 
-    if (googleVoice && option.value === googleVoice.name) {
-      utterance.voice = googleVoice
-      option.selected = true
-    } else if (microsoftVoice && option.value === microsoftVoice.name) {
-      utterance.voice = microsoftVoice
-      option.selected = true
-    }
+speechSynthesis.addEventListener('voiceschanged', () => {
+  voices = speechSynthesis.getVoices()
 
-    option.textContent = `${lang} | ${name}`
-    
-    selectElement.appendChild(option)
-  })
-
+  insertOptionElementIntoDOM(voices)
+  setPTBRVoices(voices)
 })
 
 buttonInsertText.addEventListener('click', () => {
